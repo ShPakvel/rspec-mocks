@@ -349,6 +349,17 @@ module RSpec
         expect(object.send(:defined_private_method)).to eq("works")
       end
 
+      it 'runs the before_verifying_double callbacks' do
+        expect { |probe|
+          RSpec.configuration.mock_with(:rspec) do |config|
+            config.before_verifying_doubles(&probe)
+          end
+
+          expect(object).to receive(:implemented)
+          object.implemented
+        }.to yield_with_args(have_attributes :target => object)
+      end
+
       it 'does not allow a non-existing method to be expected' do
         prevents { expect(object).to receive(:unimplemented) }
       end
@@ -378,6 +389,22 @@ module RSpec
         expect_any_instance_of(klass).to receive(:defined_private_method).and_call_original
         object.send(:defined_private_method)
       end
+
+      it 'runs the before_verifying_double callbacks on any_instance' do
+        expect { |probe|
+          RSpec.configuration.mock_with(:rspec) do |config|
+            config.before_verifying_doubles(&probe)
+          end
+
+          expect_any_instance_of(klass).to receive(:implemented)
+          object.implemented
+        }.to yield_successive_args(
+          *(klass.ancestors + [klass]).map do |target|
+            have_attributes(:target => target)
+          end
+        )
+      end
+
 
       it 'does not allow a non-existing method to be called on any_instance' do
         prevents(/does not implement/) {
